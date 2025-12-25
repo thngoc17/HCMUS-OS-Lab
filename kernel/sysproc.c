@@ -120,3 +120,40 @@ sys_sysinfo(void)
   
   return 0;
 }
+
+uint64
+sys_pgaccess(void)
+{
+  uint64 va;
+  int n;
+  uint64 mask;
+
+  argaddr(0, &va);
+  argint(1, &n);
+  argaddr(2, &mask);
+
+  if(n > 64 ) return -1;
+
+  uint64 result = 0;
+  struct proc* p;
+  p = myproc();
+
+  for(int i = 0; i < n; i++){
+    uint64 va_current = va + i * PGSIZE;
+    if(va_current >= p->sz) break;
+
+    pte_t* pte = walk(p->pagetable, va_current, 0);
+
+    if(pte != 0){
+      if(*pte & PTE_A){
+        result |= (1L << i);
+        *pte &= ~PTE_A;
+      }
+    }
+  }
+
+  if(copyout(p->pagetable, mask,(char *)&result, sizeof(result)) < 0) return -1;
+
+  return 0;
+}
+
